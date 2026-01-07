@@ -1,0 +1,102 @@
+# ============================
+# Python basics
+# ============================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+*.tmp
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ============================
+# Hugging Face
+# ============================
+
+# Model weights (Transformers, GGUF, custom checkpoints)
+*.bin
+*.safetensors
+*.h5
+*.pt
+*.pth
+*.gguf
+*.onnx
+*.wav
+*.pt
+# Tokenizers + configs
+tokenizer.json
+tokenizer_config.json
+special_tokens_map.json
+vocab.json
+merges.txt
+
+# Cache directories
+huggingface/
+hf_home/
+~/.cache/huggingface/
+.cache/huggingface/
+playwright/profiles/
+# Transformers cached downloads
+~/.cache/torch/
+.cache/torch/
+
+# ============================
+# ChromaDB
+# ============================
+
+# Default Chroma persistence folder
+chroma/
+chromadb/
+chroma_db/
+data/chroma/
+
+# SQLite + lock files
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.lock
+
+# Embeddings / index artifacts
+index/
+indexes/
+*.parquet
+*.feather
+
+# ============================
+# Logs / runtime
+# ============================
+logs/
+database/
+*.log
+*.out
+*.err
+*.json
+
+# Temp files
+tmp/
+temp/
+*.cache
+
+# ============================
+# OS files
+# ============================
+.DS_Store
+Thumbs.db
+
+# ============================
+# Editors
+# ============================
+.vscode/
+.idea/
+*.swp
+*.swo
