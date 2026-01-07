@@ -1,20 +1,17 @@
-# main.py
 from wakeword import wait_for_wakeword
-from speech_to_text import record_until_silence, transcribe
+from speech_to_text import SpeechToText
+
+stt = SpeechToText()
 
 while True:
-    # 1. Chờ wake word
     wait_for_wakeword()
 
-    # 2. Ghi âm đến khi im lặng
-    audio = record_until_silence()
-
+    audio = stt.record_until_silence()
     if audio is None:
-        print("❌ Không nghe thấy gì.")
+        print("❌ Không thu được giọng nói.")
         continue
 
-    # 3. Speech to text
-    print("🧠 Kết quả STT:")
-    transcribe(audio)
+    text = stt.transcribe(audio)
+    print(f"🧠 Bạn nói: {text}")
 
-    print("\n🔁 Quay lại chờ wake word...\n")
+    print("🔁 Quay lại chờ wake word...\n")

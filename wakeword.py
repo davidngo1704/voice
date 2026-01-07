@@ -1,14 +1,13 @@
-# wakeword.py
 import sounddevice as sd
 import numpy as np
 import torch
 import time
 import librosa
 from collections import deque
+import asyncio
 
 from model import WakeWordNet
 from voice_service import speak
-import asyncio
 
 SR = 16000
 WINDOW = int(1.0 * SR)
@@ -17,19 +16,22 @@ STEP = int(0.2 * SR)
 THRESHOLD = 0.4
 COOLDOWN = 1.0
 
+
+print("🧠 Loading WakeWord model...")
+ckpt = torch.load("wakeword.pt", map_location="cpu", weights_only=True)
+
+model = WakeWordNet()
+model.load_state_dict(ckpt["model"])
+model.eval()
+
+mean = ckpt["mean"].squeeze(0)
+std = ckpt["std"].squeeze(0)
+print("✅ WakeWord sẵn sàng.")
+
+
 def wait_for_wakeword():
     audio_buffer = deque(maxlen=WINDOW)
     last_trigger = 0.0
-
-    ckpt = torch.load("wakeword.pt", map_location="cpu", weights_only=True)
-
-    model = WakeWordNet()
-    model.load_state_dict(ckpt["model"])
-    model.eval()
-
-    mean = ckpt["mean"].squeeze(0)
-    std = ckpt["std"].squeeze(0)
-
     triggered = False
 
     def callback(indata, frames, time_info, status):
@@ -53,9 +55,9 @@ def wait_for_wakeword():
         if mfcc.shape[0] < 100:
             mfcc = np.pad(mfcc, ((0, 100 - mfcc.shape[0]), (0, 0)))
 
-        mfcc = torch.from_numpy(mfcc)
-        mfcc = (mfcc - mean) / std
-        x = mfcc.unsqueeze(0)
+        x = torch.from_numpy(mfcc)
+        x = (x - mean) / std
+        x = x.unsqueeze(0)
 
         with torch.no_grad():
             score = torch.sigmoid(model(x)).item()
@@ -65,7 +67,7 @@ def wait_for_wakeword():
             triggered = True
             last_trigger = now
 
-    print("👂 Đang chờ wake word: hey jarvis")
+    print("👂 Đang chờ: hey jarvis")
 
     with sd.InputStream(
         channels=1,
