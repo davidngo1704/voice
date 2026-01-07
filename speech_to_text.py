@@ -95,9 +95,10 @@ class SpeechToText:
             audio,
             language="vi",
             task="transcribe",
-            beam_size=5,
+            beam_size=7,
             temperature=0.0,
             vad_filter=True,   # 🔥 bật để tránh noise tích lũy
+            initial_prompt="Đây là tiếng Việt nói tự nhiên, không phải tiếng Anh."
         )
 
         text = ""
