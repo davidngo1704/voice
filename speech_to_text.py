@@ -138,7 +138,10 @@ class SpeechToText:
             beam_size=7,
             temperature=[0.0, 0.2],  # 🔥 fallback chống đoán bừa
             vad_filter=True,
-            initial_prompt="Đây là tiếng Việt nói tự nhiên, là câu lệnh ngắn, không phải quảng cáo."
+            initial_prompt = """
+            Tôi nói tiếng Việt, giọng nam, tốc độ vừa,
+            hay dùng thuật ngữ AI, Python, robotics.
+            """
         )
 
         # ===== confidence gate =====
