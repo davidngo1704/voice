@@ -19,7 +19,7 @@ STEP = int(0.2 * SR)
 INFER_INTERVAL = 0.6
 THRESHOLD = 0.4
 COOLDOWN = 1.0
-SILENCE_GUARD = 0.5   # 🔥 cực kỳ quan trọng
+SILENCE_GUARD = 0.8   # 🔥 cực kỳ quan trọng
 
 # ================= TORCH OPT =================
 torch.set_num_threads(1)

@@ -14,6 +14,8 @@ VAD_AGGRESSIVENESS = 2
 SILENCE_TIMEOUT = 1.0
 MAX_RECORD_TIME = 15.0
 
+PRE_ROLL_FRAMES = 5   # ~150ms, CỰC KỲ QUAN TRỌNG
+
 
 class SpeechToText:
     def __init__(self):
@@ -34,7 +36,9 @@ class SpeechToText:
 
         print("🎙️ Nói đi...")
 
+        pre_roll = []
         voiced_bytes = []
+
         triggered = False
         last_voice_time = None
         start_time = time.time()
@@ -46,6 +50,9 @@ class SpeechToText:
             channels=CHANNELS,
             callback=callback,
         ):
+            # 🔥 warm-up mic (xả frame rác)
+            time.sleep(0.1)
+
             while True:
                 try:
                     frame = audio_queue.get(timeout=0.5)
@@ -57,8 +64,15 @@ class SpeechToText:
                 is_speech = vad.is_speech(frame, SAMPLE_RATE)
                 now = time.time()
 
+                if not triggered:
+                    pre_roll.append(frame)
+                    if len(pre_roll) > PRE_ROLL_FRAMES:
+                        pre_roll.pop(0)
+
                 if is_speech:
-                    triggered = True
+                    if not triggered:
+                        triggered = True
+                        voiced_bytes.extend(pre_roll)  # 🔥 ghép đầu câu
                     voiced_bytes.append(frame)
                     last_voice_time = now
                 elif triggered:
@@ -83,7 +97,7 @@ class SpeechToText:
             task="transcribe",
             beam_size=5,
             temperature=0.0,
-            vad_filter=False,
+            vad_filter=True,   # 🔥 bật để tránh noise tích lũy
         )
 
         text = ""
