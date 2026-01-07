@@ -35,7 +35,7 @@ class SpeechToText:
     def __init__(self):
         print("🧠 Loading Whisper model (1 lần duy nhất)...")
         self.model = WhisperModel(
-            "large",
+            "large-v3",
             device="cuda",
             compute_type="int8"
         )
