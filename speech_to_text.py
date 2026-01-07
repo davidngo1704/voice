@@ -1,56 +1,101 @@
 import sounddevice as sd
-from scipy.io.wavfile import write
-from faster_whisper import WhisperModel
+import webrtcvad
+import queue
+import time
 import numpy as np
+from faster_whisper import WhisperModel
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
-OUTPUT_WAV = "record_ok.wav"
+FRAME_DURATION_MS = 30
+FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION_MS / 1000)
+
+VAD_AGGRESSIVENESS = 2
+SILENCE_TIMEOUT = 1.0
+MAX_RECORD_TIME = 15.0
 
 
-def record_until_enter():
-    print("Nhấn Enter để BẮT ĐẦU thu âm...")
-    input()
+def record_until_silence():
+    vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
+    audio_queue = queue.Queue()
 
-    print("Đang thu âm... Nhấn Enter để DỪNG.")
-    frames = []
+    def callback(indata, frames, time_info, status):
+        audio_queue.put(bytes(indata))
 
-    def callback(indata, frames_count, time, status):
-        frames.append(indata.copy())
+    print("🎙️ Nói đi. Im lặng là tôi dừng.")
 
-    with sd.InputStream(
+    voiced_bytes = []
+    triggered = False
+    last_voice_time = None
+    start_time = time.time()
+
+    with sd.RawInputStream(
         samplerate=SAMPLE_RATE,
+        blocksize=FRAME_SIZE,
+        dtype="int16",
         channels=CHANNELS,
-        dtype="float32",
         callback=callback,
     ):
-        input()
+        while True:
+            try:
+                frame = audio_queue.get(timeout=0.5)
+            except queue.Empty:
+                if time.time() - start_time > MAX_RECORD_TIME:
+                    break
+                continue
 
-    audio = np.concatenate(frames, axis=0)
-    write(OUTPUT_WAV, SAMPLE_RATE, audio)
-    print(f"Đã lưu file: {OUTPUT_WAV}")
+            is_speech = vad.is_speech(frame, SAMPLE_RATE)
+            now = time.time()
+
+            if is_speech:
+                if not triggered:
+                    triggered = True
+                voiced_bytes.append(frame)
+                last_voice_time = now
+            else:
+                if triggered:
+                    voiced_bytes.append(frame)
+
+            if triggered and last_voice_time and now - last_voice_time > SILENCE_TIMEOUT:
+                break
+
+            if now - start_time > MAX_RECORD_TIME:
+                break
+
+    if not voiced_bytes:
+        return None
+
+    audio = b"".join(voiced_bytes)
+    audio_np = np.frombuffer(audio, dtype=np.int16).astype(np.float32) / 32768.0
+    return audio_np
 
 
-def transcribe():
+def transcribe(audio):
     model = WhisperModel(
         "large",
         device="cuda",
         compute_type="int8"
     )
 
-    segments, info = model.transcribe(
-        OUTPUT_WAV,
+    segments, _ = model.transcribe(
+        audio,
         language="vi",
         task="transcribe",
         beam_size=5,
         temperature=0.0,
-        vad_filter=True,
+        vad_filter=False,
     )
 
     for seg in segments:
-        print(f"[{seg.start:.2f}s → {seg.end:.2f}s] {seg.text}")
+        print(seg.text)
 
 
 if __name__ == "__main__":
-    record_until_enter()
-    transcribe()
+    audio = record_until_silence()
+
+    if audio is None:
+        print("❌ Không thu được giọng nói.")
+    else:
+        transcribe(audio)
+
+    print("❌ chương trình đã dừng.")
