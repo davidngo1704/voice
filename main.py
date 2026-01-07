@@ -11,6 +11,8 @@ import time
 
 stt = SpeechToText()
 
+print("🤫 Bắt đầu.", flush=True)
+
 while True:
     wait_for_wakeword()
 
@@ -19,13 +21,13 @@ while True:
 
     audio = stt.record_until_silence()
     if audio is None:
-        print("🤫 Không phát hiện giọng nói.")
+        print("🤫 Không phát hiện giọng nói.", flush=True)
         continue
 
     text = stt.transcribe(audio)
     if not text:
-        print("🤫 Không đủ tự tin để dịch.")
+        print("🤫 Không đủ tự tin để dịch.", flush=True)
         continue
 
-    print(f"🧠 Bạn nói: {text}")
-    print("🔁 Quay lại chờ wake word...\n")
+    print(f"🧠 Bạn nói: {text}", flush=True)
+    print("🔁 Quay lại chờ wake word...\n", flush=True)

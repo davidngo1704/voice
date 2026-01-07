@@ -14,4 +14,4 @@ foreach ($p in $targets) {
     Stop-Process -Id $p.ProcessId -Force
 }
 
-Write-Host "Đã dừng xong."
+Write-Host "ok."
