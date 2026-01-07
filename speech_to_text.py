@@ -18,7 +18,17 @@ MAX_RECORD_TIME = 15.0
 
 PRE_ROLL_FRAMES = 5     # ~150ms giữ đầu câu
 POST_ROLL_FRAMES = 2   # ~60ms giữ cuối câu
-MIN_AUDIO_SEC = 0.3    # lọc audio quá ngắn
+MIN_AUDIO_SEC = 0.3    # audio ngắn hơn → bỏ
+ENERGY_THRESHOLD = 0.003
+
+BAD_PHRASES = [
+    "subscribe",
+    "đăng ký kênh",
+    "ủng hộ kênh",
+    "like và share",
+    "theo dõi kênh",
+    "youtube",
+]
 
 
 class SpeechToText:
@@ -54,7 +64,7 @@ class SpeechToText:
             channels=CHANNELS,
             callback=callback,
         ):
-            # 🔥 warm-up mic (xả frame rác)
+            # warm-up mic
             time.sleep(0.1)
 
             while True:
@@ -68,7 +78,6 @@ class SpeechToText:
                 is_speech = vad.is_speech(frame, SAMPLE_RATE)
                 now = time.time()
 
-                # giữ pre-roll
                 if not triggered:
                     pre_roll.append(frame)
                     if len(pre_roll) > PRE_ROLL_FRAMES:
@@ -77,13 +86,12 @@ class SpeechToText:
                 if is_speech:
                     if not triggered:
                         triggered = True
-                        voiced_bytes.extend(pre_roll)  # 🔥 ghép đầu câu
+                        voiced_bytes.extend(pre_roll)
                     voiced_bytes.append(frame)
                     last_voice_time = now
                 elif triggered:
                     voiced_bytes.append(frame)
 
-                # silence detected → giữ thêm post-roll
                 if triggered and last_voice_time and now - last_voice_time > SILENCE_TIMEOUT:
                     for _ in range(POST_ROLL_FRAMES):
                         try:
@@ -98,7 +106,6 @@ class SpeechToText:
         if not voiced_bytes:
             return None
 
-        # ===== convert audio =====
         audio = b"".join(voiced_bytes)
         audio = np.frombuffer(audio, dtype=np.int16).astype(np.float32) / 32768.0
 
@@ -106,28 +113,46 @@ class SpeechToText:
         if len(audio) < SAMPLE_RATE * MIN_AUDIO_SEC:
             return None
 
-        # ===== RMS normalization =====
+        # ===== energy gate (CỰC KỲ QUAN TRỌNG) =====
+        energy = np.mean(np.abs(audio))
+
+        print(f"[DEBUG] energy={energy:.4f}")
+
+        if energy < ENERGY_THRESHOLD:
+            return None
+
+        # ===== RMS normalize =====
         rms = np.sqrt(np.mean(audio ** 2) + 1e-9)
         audio = audio / max(rms, 0.01)
 
-        # ===== clip nhẹ chống spike =====
+        # ===== clip chống spike =====
         audio = np.clip(audio, -1.0, 1.0)
 
         return audio
 
     def transcribe(self, audio):
-        segments, _ = self.model.transcribe(
+        segments, info = self.model.transcribe(
             audio,
             language="vi",
             task="transcribe",
             beam_size=7,
-            temperature=0.0,
+            temperature=[0.0, 0.2],  # 🔥 fallback chống đoán bừa
             vad_filter=True,
-            initial_prompt="Đây là tiếng Việt nói tự nhiên, không phải tiếng Anh."
+            initial_prompt="Đây là tiếng Việt nói tự nhiên, là câu lệnh ngắn, không phải quảng cáo."
         )
+
+        # ===== confidence gate =====
+        if info.language_probability < 0.7:
+            return ""
 
         text = ""
         for seg in segments:
             text += seg.text
 
-        return text.strip()
+        text = text.strip().lower()
+
+        # ===== hallucination guard =====
+        if any(p in text for p in BAD_PHRASES):
+            return ""
+
+        return text
